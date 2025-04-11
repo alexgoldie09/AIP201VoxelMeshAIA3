@@ -21,7 +21,7 @@ public class VoxelNavMeshGenerator : MonoBehaviour
     public GameObject voxelPrefab;
     public bool spawnVoxelMeshes = false;
 
-    private Voxel[,,] voxelGrid;
+    private VoxelOld[,,] voxelGrid;
     private List<List<Vector3>> extractedPolygons = new List<List<Vector3>>();
 
     void Start()
@@ -34,7 +34,7 @@ public class VoxelNavMeshGenerator : MonoBehaviour
         // Clear voxels for memory runtime
         ClearVoxels();
 
-        voxelGrid = new Voxel[gridSizeX, gridSizeY, gridSizeZ];
+        voxelGrid = new VoxelOld[gridSizeX, gridSizeY, gridSizeZ];
 
         gridOrigin = transform.position;
 
@@ -95,7 +95,7 @@ public class VoxelNavMeshGenerator : MonoBehaviour
 
                     bool isWalkable = Physics.OverlapBox(worldPos, Vector3.one * voxelSize * 0.45f, Quaternion.identity, groundMask).Length > 0;
 
-                    voxelGrid[x, y, z] = new Voxel(worldPos, isWalkable);
+                    voxelGrid[x, y, z] = new VoxelOld(worldPos, isWalkable);
 
                     // Mesh spawning (editor/runtime safe)
                     if (spawnVoxelMeshes && voxelPrefab != null)
@@ -187,7 +187,7 @@ public class VoxelNavMeshGenerator : MonoBehaviour
             {
                 for (int z = 0; z < gridSizeZ; z++)
                 {
-                    Voxel voxel = voxelGrid[x, y, z];
+                    VoxelOld voxel = voxelGrid[x, y, z];
                     if (voxel != null)
                         voxel.isBorder = voxel.IsBorder(voxelGrid, x, y, z);
                 }
@@ -229,7 +229,7 @@ public class VoxelNavMeshGenerator : MonoBehaviour
             Renderer rend = cube.GetComponent<Renderer>();
             if (rend != null)
             {
-                Voxel voxel = voxelGrid[x, y, z];
+                VoxelOld voxel = voxelGrid[x, y, z];
                 rend.material.color = !isWalkable ? Color.red : voxel.isBorder ? Color.yellow : Color.green;
             }
         }
@@ -251,7 +251,7 @@ public class VoxelNavMeshGenerator : MonoBehaviour
         {
             for (int z = 0; z < gridSizeZ; z++)
             {
-                Voxel voxel = voxelGrid[x, yLevel, z];
+                VoxelOld voxel = voxelGrid[x, yLevel, z];
                 if (voxel.isWalkable && voxel.isBorder && !visited[x, z])
                 {
                     List<Vector3> polygon = new List<Vector3>();

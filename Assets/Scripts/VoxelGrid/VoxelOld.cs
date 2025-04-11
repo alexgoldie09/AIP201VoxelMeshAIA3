@@ -9,20 +9,20 @@ public enum AreaType
 }
 
 
-public class Voxel
+public class VoxelOld
 {
     public Vector3 worldPosition;
     public bool isWalkable;
     public bool isBorder;
 
-    public Voxel(Vector3 worldPosition, bool isWalkable)
+    public VoxelOld(Vector3 worldPosition, bool isWalkable)
     {
         this.worldPosition = worldPosition;
         this.isWalkable = isWalkable;
         this.isBorder = false;
     }
 
-    public bool IsBorder(Voxel[,,] grid, int x, int y, int z)
+    public bool IsBorder(VoxelOld[,,] grid, int x, int y, int z)
     {
         int maxX = grid.GetLength(0);
         int maxY = grid.GetLength(1);
