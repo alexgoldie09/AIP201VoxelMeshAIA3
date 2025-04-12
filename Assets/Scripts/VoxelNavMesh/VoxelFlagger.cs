@@ -1,15 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Classifies voxels in a grid based on agent parameters like height and step ability.
+/// Voxels are flagged as Walkable, NonWalkable, or Border depending on clearance, support, and radius fit.
+/// </summary>
 public static class VoxelFlagger
 {
-    // Tuning parameters
-    private const float ClearanceRatioRequired = 0.8f;    // % of agent height that must be clear
-    private const float MinSupportDepth = 0.05f;          // How far down support must be
-
+    /// <summary>
+    /// Iterates through the voxel grid and assigns a type to each voxel based on agent size and obstacle mask.
+    /// </summary>
     public static void FlagVoxels(VoxelGrid grid, AgentParameters agent, bool enableDebugLogs, bool enableDebugDraw)
     {
-        int walk = 0, non = 0, border = 0;
+        const float ClearanceRatioRequired = 0.8f; // Agent must have 80% headroom clearance
+        const float MinSupportDepth = 0.05f;       // Must be standing on solid ground (slight leniency)
 
         for (int x = 0; x < grid.dimensions.x; x++)
         {
@@ -17,82 +21,92 @@ public static class VoxelFlagger
             {
                 for (int z = 0; z < grid.dimensions.z; z++)
                 {
-                    Voxel voxel = grid.voxels[x, y, z];
-                    if (voxel == null || voxel.isOccupied)
+                    Voxel v = grid.voxels[x, y, z];
+                    if (v == null) continue;
+
+                    if (v.isOccupied)
                     {
-                        voxel.type = VoxelType.NonWalkable;
-                        non++;
+                        v.type = VoxelType.NonWalkable;
                         continue;
                     }
 
-                    // Measure vertical clearance above
-                    int aboveClear = 0;
-                    for (int i = 1; i <= Mathf.FloorToInt(agent.height / grid.voxelSize); i++)
+                    // Count clearance above
+                    float clearanceHeight = 0f;
+                    for (int cy = y + 1; cy < grid.dimensions.y; cy++)
                     {
-                        Voxel above = grid.Get(x, y + i, z);
-                        if (above != null && !above.isOccupied)
-                            aboveClear++;
+                        var above = grid.voxels[x, cy, z];
+                        if (above == null || above.isOccupied) break;
+                        clearanceHeight += grid.voxelSize;
+                        if (clearanceHeight >= agent.height) break;
                     }
 
-                    // Measure support depth below
-                    int belowSupport = 0;
-                    for (int i = 1; i <= Mathf.FloorToInt(agent.maxStepHeight / grid.voxelSize); i++)
+                    // Count support below
+                    float supportDepth = 0f;
+                    for (int sy = y - 1; sy >= 0; sy--)
                     {
-                        Voxel below = grid.Get(x, y - i, z);
-                        if (below != null && below.isOccupied)
-                            belowSupport++;
+                        var below = grid.voxels[x, sy, z];
+                        if (below == null || !below.isOccupied) break;
+                        supportDepth += grid.voxelSize;
+                        if (supportDepth >= agent.maxStepHeight) break;
                     }
 
-                    float clearanceHeight = aboveClear * grid.voxelSize;
-                    float supportDepth = belowSupport * grid.voxelSize;
+                    LayerMask obstacleMask = LayerMask.GetMask("Obstacle");
 
-                    // Debug output
-                    // if (enableDebugLogs)
-                        // Debug.Log($"Voxel {voxel.position}: ClearanceHeight={clearanceHeight:F2}, SupportDepth={supportDepth:F2}");
+                    // Check for horizontal fit
+                    bool hasHorizontalClearance = !Physics.CheckSphere(
+                        v.position,
+                        agent.radius,
+                        obstacleMask,
+                        QueryTriggerInteraction.Ignore
+                    );
 
-                    bool hasEnoughClearance = clearanceHeight >= agent.height * 0.8f;
-                    bool hasEnoughSupport = supportDepth >= 0.05f;
+                    bool hasEnoughClearance = clearanceHeight >= agent.height * ClearanceRatioRequired;
+                    bool hasEnoughSupport = supportDepth >= MinSupportDepth;
 
-                    if (hasEnoughClearance && hasEnoughSupport)
-                    {
-                        voxel.type = VoxelType.Walkable;
-                        walk++;
-                    }
+                    if (hasEnoughClearance && hasEnoughSupport && hasHorizontalClearance)
+                        v.type = VoxelType.Walkable;
                     else
-                    {
-                        voxel.type = VoxelType.NonWalkable;
-                        non++;
-
-                        // Optional draw rays for "almost pass"
-                        //if (enableDebugDraw)
-                        //{
-                        //    if (!hasEnoughClearance && clearanceHeight >= agent.height * 0.6f)
-                        //        Debug.DrawRay(voxel.position, Vector3.up * 0.3f, Color.cyan);
-
-                        //    if (!hasEnoughSupport && supportDepth >= 0.025f)
-                        //        Debug.DrawRay(voxel.position, Vector3.down * 0.3f, Color.magenta);
-                        //}
-                    }
+                        v.type = VoxelType.NonWalkable;
                 }
             }
         }
 
-        MarkBorders(grid, enableDebugLogs);
-
-        foreach (var v in grid.voxels)
+        // Optional debug logging of Walkable voxel count only (excluding Border)
+        if (enableDebugLogs)
         {
-            if (v?.type == VoxelType.Border)
-                border++;
+            int pureWalkable = 0;
+            foreach (var v in grid.voxels)
+            {
+                if (v == null) continue;
+                if (v.type == VoxelType.Walkable) pureWalkable++;
+            }
+            Debug.Log($"[Debug] Pure Walkable Voxels: {pureWalkable}");
         }
 
+        // Second pass: find edges near drop-offs or obstacles
+        MarkBorders(grid);
+
         if (enableDebugLogs)
-            Debug.Log($"Walkable: {walk}, Border: {border}, NonWalkable: {non}");
+        {
+            int walkable = 0, border = 0, nonWalkable = 0;
+            foreach (var v in grid.voxels)
+            {
+                if (v == null) continue;
+                if (v.type == VoxelType.Walkable) walkable++;
+                if (v.type == VoxelType.Border) border++;
+                if (v.type == VoxelType.NonWalkable) nonWalkable++;
+            }
+
+            Debug.Log($"Walkable: {walkable}, Border: {border}, NonWalkable: {nonWalkable}");
+        }
     }
 
-    private static void MarkBorders(VoxelGrid grid, bool enableDebugLogs)
+    /// <summary>
+    /// Converts walkable voxels into border voxels if they are adjacent to enough non-walkable ones.
+    /// Helps define polygon edges later. Less aggressive now (threshold 3+).
+    /// </summary>
+    private static void MarkBorders(VoxelGrid grid)
     {
-        int convertedToBorder = 0;
-
         for (int x = 0; x < grid.dimensions.x; x++)
         {
             for (int y = 0; y < grid.dimensions.y; y++)
@@ -103,36 +117,22 @@ public static class VoxelFlagger
                     if (v == null || v.type != VoxelType.Walkable) continue;
 
                     int nonWalkableNeighbors = 0;
-
-                    foreach (var neighbor in GetAdjacentVoxels(grid, x, y, z))
+                    foreach (var offset in VoxelGrid.NeighbourOffsets)
                     {
+                        int nx = x + offset.x;
+                        int ny = y + offset.y;
+                        int nz = z + offset.z;
+
+                        if (!grid.InBounds(nx, ny, nz)) continue;
+                        var neighbor = grid.voxels[nx, ny, nz];
                         if (neighbor == null || neighbor.type == VoxelType.NonWalkable)
                             nonWalkableNeighbors++;
                     }
 
-                    if (nonWalkableNeighbors >= 2)
-                    {
-                        if (enableDebugLogs)
-                            Debug.Log($"Voxel at {v.position} changed to Border due to {nonWalkableNeighbors} nonwalkable neighbors.");
-
+                    if (nonWalkableNeighbors >= 3) // More strict to reduce over-conversion
                         v.type = VoxelType.Border;
-                        convertedToBorder++;
-                    }
                 }
             }
         }
-
-        if (enableDebugLogs)
-            Debug.Log($"Total Walkables converted to Border: {convertedToBorder}");
-    }
-
-    private static IEnumerable<Voxel> GetAdjacentVoxels(VoxelGrid grid, int x, int y, int z)
-    {
-        yield return grid.Get(x + 1, y, z);
-        yield return grid.Get(x - 1, y, z);
-        yield return grid.Get(x, y + 1, z);
-        yield return grid.Get(x, y - 1, z);
-        yield return grid.Get(x, y, z + 1);
-        yield return grid.Get(x, y, z - 1);
     }
 }

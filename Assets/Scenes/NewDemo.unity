@@ -866,7 +866,7 @@ Transform:
   m_GameObject: {fileID: 1262472930}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.13, y: 1, z: -3.42}
+  m_LocalPosition: {x: -2.53, y: 1, z: -3.42}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -901,27 +901,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 567ee10e636e2874f8dcf833eb291e7a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridOrigin: {x: -15, y: 0, z: -15}
-  cellSize: {x: 5, y: 3, z: 5}
-  gridDimensions: {x: 6, y: 5, z: 6}
-  overlapPercent: 0
+  gridOrigin: {x: -16, y: 0, z: -16}
+  cellSize: {x: 5, y: 5, z: 5}
+  gridDimensions: {x: 10, y: 2, z: 10}
+  overlapPercent: 0.1
   voxelSize: 0.3
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 448
+    m_Bits: 320
   agentParameters:
     radius: 0.4
     height: 1.5
     maxStepHeight: 0.6
-    maxSlopeRad: 0.5
-    minWaterDepth: 0
-    maxWaterDepth: 1.5
   enableDebugDraw: 1
   enableDebugLogs: 0
   showGridBounds: 0
-  showVoxels: 0
-  showSimplifiedPolygons: 1
-  showTriangleDebug: 0
+  showVoxels: 1
+  showSimplifiedPolygons: 0
   simplificationTolerance: 0.3
 --- !u!4 &1280084598
 Transform:
@@ -932,7 +928,7 @@ Transform:
   m_GameObject: {fileID: 1280084596}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -15, y: 0, z: -15}
+  m_LocalPosition: {x: -16, y: 0, z: -16}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1050,5 +1046,5 @@ SceneRoots:
   - {fileID: 963194228}
   - {fileID: 705507995}
   - {fileID: 327130383}
-  - {fileID: 1262472934}
   - {fileID: 1280084598}
+  - {fileID: 1262472934}

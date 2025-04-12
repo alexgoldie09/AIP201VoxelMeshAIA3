@@ -1,12 +1,19 @@
 using UnityEngine;
 
+/// <summary>
+/// A 3D grid of voxels representing a volumetric sampling of space within a navmesh cell.
+/// Provides utilities to convert between grid indices and world space, and to query voxel neighbors.
+/// </summary>
 public class VoxelGrid
 {
-    public Voxel[,,] voxels;              // 3D array of voxels
-    public Vector3Int dimensions;         // Number of voxels in x, y, z
-    public float voxelSize;              // Side length of each voxel
-    public Vector3 origin;               // World position of the grid's bottom-left-front corner
+    public Voxel[,,] voxels;              // 3D array storing all voxels in the grid
+    public Vector3Int dimensions;         // Size of the grid in voxels (x, y, z)
+    public float voxelSize;               // Length of one side of each voxel cube
+    public Vector3 origin;                // Bottom-front-left corner of the voxel grid in world space
 
+    /// <summary>
+    /// Initializes the voxel grid based on dimension, voxel size, and world-space origin.
+    /// </summary>
     public VoxelGrid(Vector3Int dimensions, float voxelSize, Vector3 origin)
     {
         this.dimensions = dimensions;
@@ -15,7 +22,9 @@ public class VoxelGrid
         this.voxels = new Voxel[dimensions.x, dimensions.y, dimensions.z];
     }
 
-    // Safely get a voxel at grid index (x, y, z)
+    /// <summary>
+    /// Gets the voxel at the specified index, or null if out of bounds.
+    /// </summary>
     public Voxel Get(int x, int y, int z)
     {
         if (x < 0 || x >= dimensions.x ||
@@ -26,7 +35,9 @@ public class VoxelGrid
         return voxels[x, y, z];
     }
 
-    // Convert a grid index to world position
+    /// <summary>
+    /// Converts a voxel index (x, y, z) into world-space center position.
+    /// </summary>
     public Vector3 IndexToWorld(int x, int y, int z)
     {
         return origin + new Vector3(
@@ -36,7 +47,9 @@ public class VoxelGrid
         );
     }
 
-    // Optional: Convert a world position to voxel indices
+    /// <summary>
+    /// Converts a world position to the voxel index within the grid.
+    /// </summary>
     public Vector3Int WorldToIndex(Vector3 worldPos)
     {
         Vector3 local = worldPos - origin;
@@ -47,6 +60,9 @@ public class VoxelGrid
         );
     }
 
+    /// <summary>
+    /// Checks if the given index is within the grid bounds.
+    /// </summary>
     public bool InBounds(int x, int y, int z)
     {
         return x >= 0 && x < dimensions.x &&
@@ -54,6 +70,10 @@ public class VoxelGrid
                z >= 0 && z < dimensions.z;
     }
 
+    /// <summary>
+    /// 6-directional neighbor offsets (left/right, up/down, forward/backward).
+    /// Used for connectivity checks and traversal.
+    /// </summary>
     public static readonly Vector3Int[] NeighbourOffsets =
     {
         new Vector3Int(1, 0, 0), new Vector3Int(-1, 0, 0),

@@ -1,15 +1,25 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Extracts connected planar border voxel surfaces from a voxel grid.
+/// Performs 2D flood fill in the XZ plane at each Y layer.
+/// </summary>
 public static class BorderSurfaceExtractor
 {
-    public static float groupMergeDistance = 0.35f; // tweak as needed
+    // Maximum distance between border voxels to be grouped together
+    public static float groupMergeDistance = 1f;
 
-    public static List<List<Vector3>> ExtractConnectedSurfaces(VoxelGrid grid)
+    /// <summary>
+    /// Returns a list of surface groups, each representing a contiguous border patch.
+    /// Each surface is a list of Vector2 positions (projected XZ center of each border voxel).
+    /// </summary>
+    public static List<List<Vector2>> ExtractConnectedSurfaces(VoxelGrid grid)
     {
-        List<List<Vector3>> connectedSurfaces = new();
+        List<List<Vector2>> connectedSurfaces = new();
         bool[,,] visited = new bool[grid.dimensions.x, grid.dimensions.y, grid.dimensions.z];
 
+        // Process each Y-layer separately (flat planar navmesh assumption)
         for (int y = 0; y < grid.dimensions.y; y++)
         {
             for (int x = 0; x < grid.dimensions.x; x++)
@@ -20,7 +30,8 @@ public static class BorderSurfaceExtractor
                     if (voxel == null || voxel.type != VoxelType.Border || visited[x, y, z])
                         continue;
 
-                    List<Vector3> group = new();
+                    // Start a new flood fill for this group
+                    List<Vector2> group = new();
                     Queue<Vector2Int> queue = new();
                     queue.Enqueue(new Vector2Int(x, z));
                     visited[x, y, z] = true;
@@ -29,7 +40,7 @@ public static class BorderSurfaceExtractor
                     {
                         Vector2Int current = queue.Dequeue();
                         var curVoxel = grid.voxels[current.x, y, current.y];
-                        group.Add(curVoxel.position);
+                        group.Add(new Vector2(curVoxel.position.x, curVoxel.position.z));
 
                         foreach (var offset in XZOffsets)
                         {
@@ -59,6 +70,9 @@ public static class BorderSurfaceExtractor
         return connectedSurfaces;
     }
 
+    /// <summary>
+    /// 8-directional offsets in the XZ plane (includes diagonals)
+    /// </summary>
     private static readonly Vector2Int[] XZOffsets = new Vector2Int[]
     {
         new Vector2Int(1, 0), new Vector2Int(-1, 0),

@@ -1,24 +1,30 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
+/// <summary>
+/// Generates a voxel-based navmesh by dividing the world into cells, voxelizing space, flagging walkable regions,
+/// extracting and simplifying border polygons, triangulating them, and optionally visualizing the results.
+/// </summary>
 [ExecuteAlways]
 public class NavmeshGridGenerator : MonoBehaviour
 {
     [Header("Grid Settings")]
-    public Vector3 gridOrigin = Vector3.zero;
-    public Vector3 cellSize = new Vector3(5, 5, 5);
-    public Vector3Int gridDimensions = new Vector3Int(4, 1, 4);
+    public Vector3 gridOrigin = Vector3.zero; // Starting position of the navmesh grid
+    public Vector3 cellSize = new Vector3(5, 5, 5); // Size of each navmesh cell
+    public Vector3Int gridDimensions = new Vector3Int(4, 1, 4); // How many cells along each axis
     [Range(0f, 0.5f)]
-    public float overlapPercent = 0.1f;
+    public float overlapPercent = 0.1f; // Amount of overlap between cells
 
     [Header("Voxel Settings")]
-    public float voxelSize = 0.3f;
-    public LayerMask obstacleMask = ~0;
-    public AgentParameters agentParameters = new AgentParameters();
+    public float voxelSize = 0.3f; // Size of each voxel cube
+    public LayerMask obstacleMask = ~0; // Layers considered obstacles
+    public AgentParameters agentParameters = new AgentParameters(); // Defines agent's radius and height
 
     [Header("Debug")]
     public bool enableDebugDraw = true;
@@ -26,47 +32,36 @@ public class NavmeshGridGenerator : MonoBehaviour
     public bool showGridBounds = true;
     public bool showVoxels = true;
     public bool showSimplifiedPolygons = true;
-    public bool showTriangleDebug = true;
     public float simplificationTolerance = 0.3f;
 
     private List<NavmeshCell> cells = new List<NavmeshCell>();
     private Dictionary<NavmeshCell, VoxelGrid> cellVoxelGrids = new();
-
-#if UNITY_EDITOR
-    private List<GameObject> debugMeshObjects = new();
-
-    private void ClearDebugMeshes()
-    {
-        foreach (var go in debugMeshObjects)
-        {
-            if (go != null)
-                DestroyImmediate(go);
-        }
-        debugMeshObjects.Clear();
-    }
-#endif
+    private List<int> masterTriangleList = new(); // Holds all triangle indices globally
+    private List<NavmeshNode> navMeshNodes = new();
 
     /// <summary>
-    /// Manual trigger to regenerate everything (in Inspector).
+    /// Rebuilds the entire navmesh: cells, voxel data, and polygon surfaces.
     /// </summary>
     [ContextMenu("Rebuild Navmesh")]
     public void Rebuild()
     {
-#if UNITY_EDITOR
-        ClearDebugMeshes();
-#endif
         GenerateCells();
         VoxelizeCells();
+        GenerateNavmeshNodes();
     }
 
-    private void OnEnable()
+    private void Start()
     {
-#if UNITY_EDITOR
-        // Optional auto-run
-        // Rebuild();
-#endif
+        if (Application.isPlaying)
+        {
+            Rebuild(); // Optional: ensure navmesh is generated
+        }
     }
 
+
+    /// <summary>
+    /// Creates a grid of navmesh cells with optional overlap.
+    /// </summary>
     private void GenerateCells()
     {
         cells.Clear();
@@ -92,6 +87,9 @@ public class NavmeshGridGenerator : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Voxelizes each cell and flags its voxels using agent clearance checks.
+    /// </summary>
     private void VoxelizeCells()
     {
         cellVoxelGrids.Clear();
@@ -103,15 +101,13 @@ public class NavmeshGridGenerator : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Draws debug visuals for the grid, voxel classification, polygon outlines, and triangle info.
+    /// </summary>
     private void OnDrawGizmos()
     {
         if (!enableDebugDraw) return;
 
-#if UNITY_EDITOR
-        ClearDebugMeshes();
-#endif
-
-        // Draw cell boundaries
         if (showGridBounds)
         {
             Gizmos.color = Color.yellow;
@@ -121,31 +117,22 @@ public class NavmeshGridGenerator : MonoBehaviour
             }
         }
 
-        List<Vector2> combined2D = new();
-        float targetY = -1f;
-
         foreach (var kvp in cellVoxelGrids)
         {
             var grid = kvp.Value;
 
-            // ✅ 1. Voxel Debug Gizmos (now optional)
-            for (int x = 0; x < grid.dimensions.x; x++)
+            // Draw voxel classification if enabled
+            if (showVoxels)
             {
-                for (int y = 0; y < grid.dimensions.y; y++)
+                for (int x = 0; x < grid.dimensions.x; x++)
                 {
-                    for (int z = 0; z < grid.dimensions.z; z++)
+                    for (int y = 0; y < grid.dimensions.y; y++)
                     {
-                        var voxel = grid.voxels[x, y, z];
-                        if (voxel == null) continue;
-
-                        if (voxel.type == VoxelType.Border)
+                        for (int z = 0; z < grid.dimensions.z; z++)
                         {
-                            if (targetY < 0) targetY = voxel.position.y;
-                            combined2D.Add(new Vector2(voxel.position.x, voxel.position.z));
-                        }
+                            var voxel = grid.voxels[x, y, z];
+                            if (voxel == null) continue;
 
-                        if (showVoxels)
-                        {
                             switch (voxel.type)
                             {
                                 case VoxelType.Walkable:
@@ -154,9 +141,6 @@ public class NavmeshGridGenerator : MonoBehaviour
                                 case VoxelType.Border:
                                     Gizmos.color = Color.cyan;
                                     break;
-                                //case VoxelType.NonWalkable:
-                                //    Gizmos.color = Color.red;
-                                //    break;
                                 default:
                                     continue;
                             }
@@ -165,45 +149,109 @@ public class NavmeshGridGenerator : MonoBehaviour
                     }
                 }
             }
+        }
 
-            // ✅ Step 2d - Group border voxels and build polygon outlines
+        GenerateNavmeshNodes();
+    }
+
+    private void GenerateNavmeshNodes()
+    {
+        float targetY = -1f;
+        masterTriangleList.Clear();
+        navMeshNodes.Clear();
+
+        foreach (var kvp in cellVoxelGrids)
+        {
+            var grid = kvp.Value;
             var surfaceGroups = BorderSurfaceExtractor.ExtractConnectedSurfaces(grid);
-
             foreach (var group in surfaceGroups)
             {
                 if (group.Count < 3) continue;
+                if (targetY < 0) targetY = grid.voxels[0, 0, 0].position.y;
 
-                float y = group[0].y;
-                List<Vector2> projected = new();
-                foreach (var v in group)
-                    projected.Add(new Vector2(v.x, v.z));
-
-                var simplified = ConvexHullCalculator.Compute(projected);
+                var convex = ConvexHullCalculator.Compute(group);
+                var simplified = PolygonSimplifier.SimplifyPolygon(convex, simplificationTolerance);
 
                 if (showSimplifiedPolygons)
                 {
                     for (int i = 0; i < simplified.Count; i++)
                     {
-                        Vector3 a = new Vector3(simplified[i].x, y, simplified[i].y);
-                        Vector3 b = new Vector3(simplified[(i + 1) % simplified.Count].x, y, simplified[(i + 1) % simplified.Count].y);
+                        Vector3 a = new Vector3(simplified[i].x, targetY, simplified[i].y);
+                        Vector3 b = new Vector3(simplified[(i + 1) % simplified.Count].x, targetY, simplified[(i + 1) % simplified.Count].y);
                         Debug.DrawLine(a, b, Color.magenta);
                     }
                 }
 
-#if UNITY_EDITOR
-                if (showTriangleDebug)
-                {
-                    var tris = PolygonTriangulator.Triangulate(simplified);
-                    GameObject debugMeshGO = new GameObject("DebugNavmeshPatch");
-                    debugMeshGO.transform.position = Vector3.zero;
-                    debugMeshGO.hideFlags = HideFlags.DontSave | HideFlags.HideInHierarchy;
+                var triangleIndices = PolygonTriangulator.Triangulate(simplified);
+                masterTriangleList.AddRange(triangleIndices);
 
-                    var debugMesh = debugMeshGO.AddComponent<NavmeshDebugMesh>();
-                    debugMesh.BuildMesh(simplified, tris, y);
-                    debugMeshObjects.Add(debugMeshGO);
+                for (int i = 0; i < triangleIndices.Count; i += 3)
+                {
+                    Vector2 vA2D = simplified[triangleIndices[i]];
+                    Vector2 vB2D = simplified[triangleIndices[i + 1]];
+                    Vector2 vC2D = simplified[triangleIndices[i + 2]];
+
+                    Vector3 vA = new Vector3(vA2D.x, targetY, vA2D.y);
+                    Vector3 vB = new Vector3(vB2D.x, targetY, vB2D.y);
+                    Vector3 vC = new Vector3(vC2D.x, targetY, vC2D.y);
+
+                    NavmeshNode node = new NavmeshNode(vA, vB, vC);
+                    navMeshNodes.Add(node);
+
+                    if (enableDebugLogs)
+                        Debug.Log($"[NavMeshNode] Created node at {node.centroid}");
                 }
-#endif
             }
         }
+
+        ConnectNavMeshNodes();
+
+        //int connectedCount = 0;
+        //foreach (var node in navMeshNodes)
+        //{
+        //    if (node.neighbors.Count > 0)
+        //        connectedCount++;
+        //}
+        //Debug.Log($"[Debug] Total NavMeshNodes: {navMeshNodes.Count}, Connected Nodes: {connectedCount}");
+    }
+
+    /// <summary>
+    /// Compares all triangle nodes and connects those that share an edge.
+    /// </summary>
+    private void ConnectNavMeshNodes()
+    {
+        for (int i = 0; i < navMeshNodes.Count; i++)
+        {
+            NavmeshNode a = navMeshNodes[i];
+            for (int j = i + 1; j < navMeshNodes.Count; j++)
+            {
+                NavmeshNode b = navMeshNodes[j];
+
+                if (ShareEdge(a, b))
+                {
+                    a.neighbors.Add(b);
+                    b.neighbors.Add(a);
+
+                    //Debug.Log($"[NavMeshNode] Connected nodes at {a.centroid} <--> {b.centroid}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines if two triangles share exactly 2 vertices (a common edge).
+    /// </summary>
+    private bool ShareEdge(NavmeshNode a, NavmeshNode b)
+    {
+        int shared = 0;
+        foreach (var va in a.vertices)
+        {
+            foreach (var vb in b.vertices)
+            {
+                if (Vector3.Distance(va, vb) < 0.3f)
+                    shared++;
+            }
+        }
+        return shared == 2;
     }
 }

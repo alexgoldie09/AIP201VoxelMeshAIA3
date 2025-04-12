@@ -1,37 +1,48 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Simplifies a 2D polygon by removing unnecessary points without significantly changing the shape.
+/// Automatically supports closed-loop polygons (where first == last).
+/// </summary>
 public static class PolygonSimplifier
 {
     /// <summary>
-    /// Simplifies a polygon shape using a basic Ramer-Douglas-Peucker-like method
-    /// that retains concave features while reducing minor noise.
+    /// Simplifies a polygon shape using a basic Ramer-Douglas-Peucker-like method.
+    /// Detects if the polygon is closed and handles wraparound simplification.
     /// </summary>
     public static List<Vector2> SimplifyPolygon(List<Vector2> points, float tolerance)
     {
         if (points == null || points.Count < 3)
             return new List<Vector2>(points);
 
-        bool[] keep = new bool[points.Count];
-        for (int i = 0; i < points.Count; i++)
-            keep[i] = false;
+        bool isClosed = points[0] == points[^1];
+        List<Vector2> working = isClosed ? new List<Vector2>(points.GetRange(0, points.Count - 1)) : new List<Vector2>(points);
 
-        SimplifySection(points, 0, points.Count - 1, tolerance, keep);
+        bool[] keep = new bool[working.Count];
+        for (int i = 0; i < keep.Length; i++) keep[i] = false;
 
-        // Ensure start and end points are kept
+        SimplifySection(working, 0, working.Count - 1, tolerance, keep);
+
         keep[0] = true;
-        keep[points.Count - 1] = true;
+        keep[working.Count - 1] = true;
 
         List<Vector2> result = new();
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < working.Count; i++)
         {
             if (keep[i])
-                result.Add(points[i]);
+                result.Add(working[i]);
         }
+
+        if (isClosed)
+            result.Add(result[0]);
 
         return result;
     }
 
+    /// <summary>
+    /// Recursively marks points that should be retained in a polygon segment.
+    /// </summary>
     private static void SimplifySection(List<Vector2> points, int startIndex, int endIndex, float tolerance, bool[] keep)
     {
         if (endIndex <= startIndex + 1)
@@ -60,6 +71,9 @@ public static class PolygonSimplifier
         }
     }
 
+    /// <summary>
+    /// Returns perpendicular distance from point p to line segment a-b.
+    /// </summary>
     private static float PerpendicularDistance(Vector2 p, Vector2 a, Vector2 b)
     {
         if (a == b)
