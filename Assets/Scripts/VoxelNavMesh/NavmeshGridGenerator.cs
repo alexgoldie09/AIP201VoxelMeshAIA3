@@ -34,6 +34,11 @@ public class NavmeshGridGenerator : MonoBehaviour
     public bool showSimplifiedPolygons = true;
     public float simplificationTolerance = 0.3f;
 
+    [Header("Agent Navigation")]
+    public Transform startTransform;
+    public Transform goalTransform;
+
+
     private List<NavmeshCell> cells = new List<NavmeshCell>();
     private Dictionary<NavmeshCell, VoxelGrid> cellVoxelGrids = new();
     private List<int> masterTriangleList = new(); // Holds all triangle indices globally
@@ -55,6 +60,7 @@ public class NavmeshGridGenerator : MonoBehaviour
         if (Application.isPlaying)
         {
             Rebuild(); // Optional: ensure navmesh is generated
+            AssignAgentPathToGoalUsingBFS();
         }
     }
 
@@ -253,5 +259,102 @@ public class NavmeshGridGenerator : MonoBehaviour
             }
         }
         return shared == 2;
+    }
+
+    public void AssignAgentPathToGoalUsingBFS()
+    {
+        Debug.Log("[AssignAgentPathToGoalUsingBFS] Running...");
+
+        var walker = FindObjectOfType<NavmeshWalker>();
+        if (walker == null)
+        {
+            Debug.LogWarning("[AssignAgentPathToGoalUsingBFS] No agent found in scene.");
+            return;
+        }
+
+        if (startTransform == null || goalTransform == null)
+        {
+            Debug.LogWarning("[AssignAgentPathToGoalUsingBFS] Missing start or goal transform.");
+            return;
+        }
+
+        List<Voxel> walkable = new();
+        foreach (var grid in cellVoxelGrids.Values)
+        {
+            foreach (var voxel in grid.voxels)
+            {
+                if (voxel != null && voxel.type == VoxelType.Walkable)
+                {
+                    walkable.Add(voxel);
+                }
+            }
+        }
+
+        Voxel start = walkable.OrderBy(v => Vector3.Distance(startTransform.position, v.position)).FirstOrDefault();
+        Voxel goal = walkable.OrderBy(v => Vector3.Distance(goalTransform.position, v.position)).FirstOrDefault();
+
+        if (start == null || goal == null)
+        {
+            Debug.LogWarning("[AssignAgentPathToGoalUsingBFS] Could not find valid start or goal voxel.");
+            return;
+        }
+
+        Queue<Voxel> frontier = new();
+        Dictionary<Voxel, Voxel> cameFrom = new();
+        frontier.Enqueue(start);
+        cameFrom[start] = null;
+
+        Vector3[] directions =
+        {
+            Vector3.left, Vector3.right,
+            Vector3.forward, Vector3.back,
+            Vector3.up, Vector3.down
+        };
+
+        while (frontier.Count > 0)
+        {
+            var current = frontier.Dequeue();
+            if (current == goal)
+                break;
+
+            foreach (var dir in directions)
+            {
+                Vector3 neighborPos = current.position + dir * voxelSize;
+                Voxel neighbor = null;
+
+                foreach (var grid in cellVoxelGrids.Values)
+                {
+                    neighbor = grid.GetVoxelAtWorldPosition(neighborPos);
+                    if (neighbor != null && neighbor.type == VoxelType.Walkable && !cameFrom.ContainsKey(neighbor))
+                    {
+                        frontier.Enqueue(neighbor);
+                        cameFrom[neighbor] = current;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!cameFrom.ContainsKey(goal))
+        {
+            Debug.LogWarning("[AssignAgentPathToGoalUsingBFS] No path found to goal.");
+            return;
+        }
+
+        List<Vector3> path = new();
+        Voxel step = goal;
+        while (step != null)
+        {
+            path.Add(step.position);
+            step = cameFrom[step];
+        }
+
+        path.Reverse();
+        Vector3 first = path[0];
+        first.y += 1f * 0.5f;
+        walker.transform.position = first;
+        walker.SetPathFromPositions(path);
+
+        Debug.Log($"[AssignAgentPathToGoalUsingBFS] Assigned path with {path.Count} steps.");
     }
 }

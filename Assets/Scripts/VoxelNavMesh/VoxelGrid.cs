@@ -80,4 +80,14 @@ public class VoxelGrid
         new Vector3Int(0, 1, 0), new Vector3Int(0, -1, 0),
         new Vector3Int(0, 0, 1), new Vector3Int(0, 0, -1)
     };
+
+    /// <summary>
+    /// Returns the voxel at the given world position, or null if out of bounds.
+    /// </summary>
+    public Voxel GetVoxelAtWorldPosition(Vector3 worldPos)
+    {
+        Vector3Int index = WorldToIndex(worldPos);
+        return Get(index.x, index.y, index.z);
+    }
+
 }
