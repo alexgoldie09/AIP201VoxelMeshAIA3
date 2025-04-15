@@ -1,34 +1,30 @@
 using UnityEngine;
 
 /// <summary>
-/// Defines the walkability state of a voxel.
+/// Enum representing the type of voxel based on clearance and surroundings.
 /// </summary>
 public enum VoxelType
 {
-    Unknown,        // Not yet classified
-    Walkable,       // Safe for agent to walk on
-    NonWalkable,    // Blocked by an obstacle
-    Border          // Edge between walkable and non-walkable
+    Walkable,
+    NonWalkable,
+    Border
 }
 
 /// <summary>
-/// Represents a single voxel within the voxel grid structure.
-/// Stores its world position, occupancy status, and classified type.
+/// Represents a single voxel in the grid with its world position, occupancy, index, and classification type.
 /// </summary>
 public class Voxel
 {
-    public Vector3 position;       // World-space center of the voxel
-    public bool isOccupied;        // True if the voxel overlaps any obstacle collider
-    public VoxelType type = VoxelType.Unknown; // Initial classification
+    public Vector3 position;          // World-space position of the voxel center
+    public Vector3Int index;          // Grid index (for faster lookups and adjacency)
+    public bool isOccupied;           // Whether this voxel overlaps an obstacle
+    public VoxelType type;            // Classification: Walkable, NonWalkable, or Border
 
-    /// <summary>
-    /// Constructs a voxel at a given position and occupancy status.
-    /// </summary>
-    /// <param name="position">World-space center position of the voxel.</param>
-    /// <param name="isOccupied">Whether the voxel is inside an obstacle.</param>
-    public Voxel(Vector3 position, bool isOccupied)
+    public Voxel(Vector3 position, bool isOccupied, VoxelType type, Vector3Int index)
     {
         this.position = position;
         this.isOccupied = isOccupied;
+        this.type = type;
+        this.index = index;
     }
 }

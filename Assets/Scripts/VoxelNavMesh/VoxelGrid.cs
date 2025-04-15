@@ -6,20 +6,21 @@ using UnityEngine;
 /// </summary>
 public class VoxelGrid
 {
-    public Voxel[,,] voxels;              // 3D array storing all voxels in the grid
-    public Vector3Int dimensions;         // Size of the grid in voxels (x, y, z)
-    public float voxelSize;               // Length of one side of each voxel cube
-    public Vector3 origin;                // Bottom-front-left corner of the voxel grid in world space
+    public Voxel[,,] voxels;
+    public float voxelSize;
+    public Vector3 origin;
+    public Vector3Int dimensions;
 
-    /// <summary>
-    /// Initializes the voxel grid based on dimension, voxel size, and world-space origin.
-    /// </summary>
-    public VoxelGrid(Vector3Int dimensions, float voxelSize, Vector3 origin)
+    public VoxelGrid(Voxel[,,] voxels, float voxelSize, Vector3 origin)
     {
-        this.dimensions = dimensions;
+        this.voxels = voxels;
         this.voxelSize = voxelSize;
         this.origin = origin;
-        this.voxels = new Voxel[dimensions.x, dimensions.y, dimensions.z];
+        this.dimensions = new Vector3Int(
+            voxels.GetLength(0),
+            voxels.GetLength(1),
+            voxels.GetLength(2)
+        );
     }
 
     /// <summary>
@@ -48,15 +49,15 @@ public class VoxelGrid
     }
 
     /// <summary>
-    /// Converts a world position to the voxel index within the grid.
+    /// Converts world position to grid index.
     /// </summary>
-    public Vector3Int WorldToIndex(Vector3 worldPos)
+    public Vector3Int WorldToIndex(Vector3 worldPosition)
     {
-        Vector3 local = worldPos - origin;
+        Vector3 relative = worldPosition - origin + (Vector3.one * voxelSize * 0.5f);
         return new Vector3Int(
-            Mathf.FloorToInt(local.x / voxelSize),
-            Mathf.FloorToInt(local.y / voxelSize),
-            Mathf.FloorToInt(local.z / voxelSize)
+            Mathf.FloorToInt(relative.x / voxelSize),
+            Mathf.FloorToInt(relative.y / voxelSize),
+            Mathf.FloorToInt(relative.z / voxelSize)
         );
     }
 

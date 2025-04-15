@@ -1,59 +1,41 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
-/// Static utility that voxelizes a given NavmeshCell into a VoxelGrid.
-/// Each voxel is tested for collisions against obstacles in the scene.
+/// Converts a NavmeshCell into a VoxelGrid by filling its volume with voxel data and determining which voxels are inside obstacles.
 /// </summary>
 public static class Voxelizer
 {
-    /// <summary>
-    /// Converts a NavmeshCell's volume into a voxel grid, where each voxel is marked as occupied or empty.
-    /// </summary>
-    /// <param name="cell">The world-space region to voxelize.</param>
-    /// <param name="voxelSize">The side length of each cubic voxel.</param>
-    /// <param name="mask">Layer mask used to detect obstacles.</param>
-    /// <returns>A populated VoxelGrid object representing space occupancy.</returns>
-    public static VoxelGrid VoxelizeCell(NavmeshCell cell, float voxelSize, LayerMask mask)
+    public static VoxelGrid VoxelizeCell(NavmeshCell cell, float voxelSize, LayerMask obstacleMask)
     {
-        // Calculate how many voxels fit along each axis
-        Vector3Int voxelCounts = new Vector3Int(
-            Mathf.CeilToInt(cell.size.x / voxelSize),
-            Mathf.CeilToInt(cell.size.y / voxelSize),
-            Mathf.CeilToInt(cell.size.z / voxelSize)
+        Vector3 cellSize = cell.bounds.size;
+        Vector3Int dims = new(
+            Mathf.CeilToInt(cellSize.x / voxelSize),
+            Mathf.CeilToInt(cellSize.y / voxelSize),
+            Mathf.CeilToInt(cellSize.z / voxelSize)
         );
 
-        // Initialize the grid
-        VoxelGrid grid = new VoxelGrid(voxelCounts, voxelSize, cell.origin);
+        Voxel[,,] voxels = new Voxel[dims.x, dims.y, dims.z];
 
-        // Loop through every voxel coordinate in the grid
-        for (int x = 0; x < voxelCounts.x; x++)
+        Vector3 startCorner = cell.bounds.min + (Vector3.one * voxelSize * 0.5f);
+
+        for (int x = 0; x < dims.x; x++)
         {
-            for (int y = 0; y < voxelCounts.y; y++)
+            for (int y = 0; y < dims.y; y++)
             {
-                for (int z = 0; z < voxelCounts.z; z++)
+                for (int z = 0; z < dims.z; z++)
                 {
-                    // Calculate the world-space center of this voxel
-                    Vector3 voxelCenter = cell.origin + new Vector3(
-                        (x + 0.5f) * voxelSize,
-                        (y + 0.5f) * voxelSize,
-                        (z + 0.5f) * voxelSize
-                    );
+                    Vector3 pos = startCorner + new Vector3(x * voxelSize, y * voxelSize, z * voxelSize);
+                    Vector3Int index = Vector3Int.RoundToInt(pos / voxelSize);
 
-                    // Check if the voxel overlaps any obstacle using a cube collider check
-                    bool isOccupied = Physics.CheckBox(
-                        voxelCenter,
-                        Vector3.one * (voxelSize / 2f),
-                        Quaternion.identity,
-                        mask,
-                        QueryTriggerInteraction.Ignore
-                    );
+                    bool isOccupied = Physics.CheckBox(pos, Vector3.one * (voxelSize * 0.5f), Quaternion.identity, obstacleMask, QueryTriggerInteraction.Ignore);
+                    VoxelType type = isOccupied ? VoxelType.NonWalkable : VoxelType.Walkable;
 
-                    // Create and store the voxel in the grid
-                    grid.voxels[x, y, z] = new Voxel(voxelCenter, isOccupied);
+                    voxels[x, y, z] = new Voxel(pos, isOccupied, type, index);
                 }
             }
         }
 
-        return grid;
+        return new VoxelGrid(voxels, voxelSize, cell.bounds.center);
     }
 }
