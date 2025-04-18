@@ -36,6 +36,28 @@ public class SerializableDictionary<TKey, TValue> : ISerializationCallbackReceiv
         set => dictionary[key] = value;
     }
 
+    public SerializableDictionary()
+    {
+        dictionary = new Dictionary<TKey, TValue>();
+        keyValuePairs = new List<SerializableKeyValuePair<TKey, TValue>>();
+    }
+
+    public SerializableDictionary(IDictionary<TKey, TValue> _other)
+    {
+        dictionary = new Dictionary<TKey, TValue>(_other);
+        keyValuePairs = new List<SerializableKeyValuePair<TKey, TValue>>();
+        foreach (var kvp in dictionary)
+        {
+            keyValuePairs.Add(new SerializableKeyValuePair<TKey, TValue>(kvp.Key, kvp.Value));
+        }
+    }
+
+    public SerializableDictionary<TKey, TValue> Clone()
+    {
+        return new SerializableDictionary<TKey, TValue>(this.ToDictionary());
+    }
+
+
     public Dictionary<TKey, TValue> ToDictionary() => new Dictionary<TKey, TValue>(dictionary);
 
     public bool ContainsKey(TKey key) => dictionary.ContainsKey(key);
@@ -77,6 +99,7 @@ public class SerializableDictionary<TKey, TValue> : ISerializationCallbackReceiv
             dictionary[pair.Key] = pair.Value;
         }
     }
+
 
     public IEnumerator<SerializableKeyValuePair<TKey, TValue>> GetEnumerator()
     {

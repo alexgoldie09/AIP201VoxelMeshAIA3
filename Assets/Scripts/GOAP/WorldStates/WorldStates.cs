@@ -3,7 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class WorldState : SerializableDictionary<string, int> { }
+public class WorldState : SerializableDictionary<string, int> 
+{
+    public WorldState() : base() { }
+
+    public WorldState(IDictionary<string, int> dict) : base(dict) { }
+
+    public WorldState(WorldState other) : base(other.ToDictionary()) { }
+}
 
 public class WorldStates
 {

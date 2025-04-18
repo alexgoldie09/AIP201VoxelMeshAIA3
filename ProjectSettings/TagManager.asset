@@ -12,6 +12,7 @@ TagManager:
   - KitchenExpeditor
   - KitchenEntrance
   - WaitReception
+  - ReceptionStaff
   layers:
   - Default
   - TransparentFX
