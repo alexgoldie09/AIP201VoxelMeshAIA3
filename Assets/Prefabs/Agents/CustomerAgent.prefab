@@ -16,9 +16,14 @@ GameObject:
   - component: {fileID: 6335156664855582219}
   - component: {fileID: 2467442343635611431}
   - component: {fileID: 880973172090621420}
+  - component: {fileID: -4837638172589371414}
+  - component: {fileID: 3572507443264748796}
+  - component: {fileID: 72971118991388149}
+  - component: {fileID: -3349084308693317489}
+  - component: {fileID: -4790793045105469340}
   m_Layer: 0
   m_Name: CustomerAgent
-  m_TagString: Untagged
+  m_TagString: Customer
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -123,7 +128,7 @@ NavMeshAgent:
   m_GameObject: {fileID: 2587574930366330305}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.5
+  m_Radius: 1
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
@@ -150,6 +155,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   actions: []
   currentAction: {fileID: 0}
+  inIdle: 0
+  assignedSeat: {fileID: 0}
+  tableNumber: -1
+  beingServed: 0
+  isSeated: 0
+  deliveredOrder:
+    ticketNumber: 0
 --- !u!114 &2467442343635611431
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -174,6 +186,7 @@ MonoBehaviour:
     - Key: hasArrived
       Value: 1
   agent: {fileID: 0}
+  thisAgent: {fileID: 0}
   running: 0
 --- !u!114 &880973172090621420
 MonoBehaviour:
@@ -191,17 +204,145 @@ MonoBehaviour:
   cost: 1
   target: {fileID: 0}
   targetTag: WaitReception
-  duration: 0
+  duration: 1
   preConditions:
     keyValuePairs:
     - Key: hasArrived
-      Value: 0
+      Value: 1
+  afterEffects:
+    keyValuePairs:
+    - Key: hasCheckedIn
+      Value: 1
+  agent: {fileID: 0}
+  thisAgent: {fileID: 0}
+  running: 0
+--- !u!114 &-4837638172589371414
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2587574930366330305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 825cad798c5673948a50857f08f941a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  actionName: Waiting for table
+  cost: 1
+  target: {fileID: 0}
+  targetTag: 
+  duration: 4
+  preConditions:
+    keyValuePairs:
+    - Key: hasCheckedIn
+      Value: 1
   afterEffects:
     keyValuePairs:
     - Key: isWaiting
       Value: 1
   agent: {fileID: 0}
+  thisAgent: {fileID: 0}
   running: 0
+--- !u!114 &3572507443264748796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2587574930366330305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc334d2ec512e06409a2f8054a4b5dc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  actionName: Go to assigned table
+  cost: 1
+  target: {fileID: 0}
+  targetTag: 
+  duration: 0
+  preConditions:
+    keyValuePairs:
+    - Key: atRestaurant
+      Value: 1
+    - Key: RestaurantAvailable
+      Value: 1
+  afterEffects:
+    keyValuePairs:
+    - Key: isSeated
+      Value: 2
+  agent: {fileID: 0}
+  thisAgent: {fileID: 0}
+  running: 0
+--- !u!114 &72971118991388149
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2587574930366330305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff6b922ac32573c47849ff7bbc580a57, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  actionName: Checking order and going home
+  cost: 1
+  target: {fileID: 0}
+  targetTag: Home
+  duration: 2
+  preConditions:
+    keyValuePairs:
+    - Key: ReceivedFood
+      Value: 1
+  afterEffects:
+    keyValuePairs:
+    - Key: isHome
+      Value: 1
+  agent: {fileID: 0}
+  thisAgent: {fileID: 0}
+  running: 0
+--- !u!114 &-3349084308693317489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2587574930366330305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: af86c2c7c3a2d43458807b7d13f1d344, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  actionName: Going home restaurant was full
+  cost: 1
+  target: {fileID: 0}
+  targetTag: Home
+  duration: 2
+  preConditions:
+    keyValuePairs:
+    - Key: RestaurantFull
+      Value: 1
+  afterEffects:
+    keyValuePairs:
+    - Key: isFull
+      Value: 1
+  agent: {fileID: 0}
+  thisAgent: {fileID: 0}
+  running: 0
+--- !u!114 &-4790793045105469340
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2587574930366330305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 672432ee566f48949a9b4f66909358b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  thisAgent: {fileID: 0}
 --- !u!1 &7033916489602393988
 GameObject:
   m_ObjectHideFlags: 0

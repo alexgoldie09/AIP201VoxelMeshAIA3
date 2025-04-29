@@ -11,6 +11,9 @@ public class GoToRestaurant : GAction
 
     public override bool PrePerform()
     {
+        agent.stoppingDistance = 0;
+        thisAgent.inIdle = false;
+
         return true;
     }
 }

@@ -82,6 +82,11 @@ public class SerializableDictionary<TKey, TValue> : ISerializationCallbackReceiv
 
     public bool TryGetValue(TKey key, out TValue value) => dictionary.TryGetValue(key, out value);
 
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetLivePairs()
+    {
+        return dictionary;
+    }
+
     public void OnBeforeSerialize()
     {
         keyValuePairs.Clear();

@@ -47,18 +47,27 @@ public class WorldStates
 
     public void ModifyState(string key, int value)
     {
-        if(states.ContainsKey(key))
+        if (states.ContainsKey(key))
         {
             states[key] += value;
-            if(states[key] <= 0)
+            if (states[key] <= 0)
             {
                 RemoveState(key);
             }
         }
         else
         {
-            states.Add(key, value);
+            // Automatically add it if trying to increase
+            if (value > 0)
+            {
+                states.Add(key, value);
+            }
+            else
+            {
+                Debug.LogWarning($"Trying to subtract from missing world state key: {key}");
+            }
         }
+        //Debug.Log($"Modified state [{key}] now has value: {states[key]}");
     }
 
     public WorldState GetStates() => states;

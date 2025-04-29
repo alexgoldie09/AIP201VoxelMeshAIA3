@@ -13,6 +13,11 @@ TagManager:
   - KitchenEntrance
   - WaitReception
   - ReceptionStaff
+  - Seat
+  - Customer
+  - KitchenStaff
+  - KitchenPick
+  - KitchenDocket
   layers:
   - Default
   - TransparentFX

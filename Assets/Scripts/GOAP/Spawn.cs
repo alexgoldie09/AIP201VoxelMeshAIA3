@@ -1,6 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Spawn : MonoBehaviour
 {
@@ -26,7 +27,10 @@ public class Spawn : MonoBehaviour
         {
             numCustomers++;
             Debug.Log($"Number of customers currently: {numCustomers}");
-            Instantiate(customerPrefab, this.transform.position, Quaternion.identity);
+
+            GameObject newCustomer = Instantiate(customerPrefab, transform.position, Quaternion.identity);
+            newCustomer.name = $"Customer_{numCustomers}";
+
             Invoke("SpawnPatient", Random.Range(2, 10));
         }
         else

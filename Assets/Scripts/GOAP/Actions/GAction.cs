@@ -13,14 +13,21 @@ public abstract class GAction : MonoBehaviour
     public WorldState preConditions;
     public WorldState afterEffects;
     public NavMeshAgent agent;
+    public GAgent thisAgent;
 
     public WorldStates agentBeliefs;
 
+    public GInventory inventory;
+    public WorldStates beliefs;
+
     public bool running = false;
 
-    public void Awake()
+    public virtual void Awake()
     {
         agent = this.gameObject.GetComponent<NavMeshAgent>();
+        thisAgent = this.GetComponent<GAgent>();
+        inventory = thisAgent.inventory;
+        beliefs = thisAgent.beliefs;
     }
 
     public bool IsAchievable() => true;
@@ -29,7 +36,7 @@ public abstract class GAction : MonoBehaviour
     {
         if (preConditions == null) return true;
 
-        foreach (SerializableKeyValuePair<string, int> pair in preConditions)
+        foreach (KeyValuePair<string, int> pair in preConditions.GetLivePairs())
         {
             if(!conditions.ContainsKey(pair.Key) || conditions[pair.Key] < pair.Value)
             {

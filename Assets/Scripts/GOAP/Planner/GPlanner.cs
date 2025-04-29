@@ -5,7 +5,7 @@ using System.Linq;
 
 public class GPlanner
 {
-    public Queue<GAction> Plan(List<GAction> actions, WorldState goal, WorldStates states)
+    public Queue<GAction> Plan(List<GAction> actions, WorldState goal, WorldStates beliefstates)
     {
         List<GAction> usableActions = new List<GAction>();
         foreach (GAction action in actions)
@@ -17,32 +17,26 @@ public class GPlanner
         }
 
         List<Node> nodes = new List<Node>();
-        Node start = new Node(null, 0, GWorld.Instance.GetWorld().GetStates(), null);
+        Node start = new Node(null, 0, GWorld.Instance.GetWorld().GetStates(), beliefstates.GetStates(), null);
 
         bool success = BuildGraph(start, nodes, usableActions, goal);
 
         if (!success)
         {
-            Debug.LogError("No Plan!");
             return null;
         }
 
+        // Find cheapest node
         Node cheapest = null;
         foreach (Node node in nodes)
         {
-            if (cheapest == null)
+            if (cheapest == null || node.cost < cheapest.cost)
             {
                 cheapest = node;
             }
-            else
-            {
-                if (node.cost < cheapest.cost)
-                {
-                    cheapest = node;
-                }
-            }
         }
 
+        // Build action queue
         List<GAction> result = new List<GAction>();
         Node n = cheapest;
         while (n != null)
@@ -60,11 +54,11 @@ public class GPlanner
             queue.Enqueue(action);
         }
 
-        Debug.Log("The plan is: ");
-        foreach (GAction action in queue)
-        {
-            Debug.Log("Q: " + action.actionName);
-        }
+        //Debug.Log("The plan is: ");
+        //foreach (GAction action in queue)
+        //{
+        //    Debug.Log("Q: " + action.actionName);
+        //}
 
         return queue;
     }
@@ -80,7 +74,7 @@ public class GPlanner
                 WorldState currentState = new WorldState(parent.state);
 
                 // Apply effects
-                foreach (SerializableKeyValuePair<string,int> effect in action.afterEffects)
+                foreach (KeyValuePair<string,int> effect in action.afterEffects.GetLivePairs())
                 {
                     if (currentState.ContainsKey(effect.Key))
                     {
@@ -115,9 +109,26 @@ public class GPlanner
         return foundPath;
     }
 
+    //private bool GoalAchieved(WorldState goal, WorldState current)
+    //{
+    //    foreach (KeyValuePair<string, int> goalEntry in goal.GetLivePairs())
+    //    {
+    //        if (goalEntry.Key == "Idle")
+    //        {
+    //            return true;
+    //        }
+
+    //        if (!current.ContainsKey(goalEntry.Key) || current[goalEntry.Key] < goalEntry.Value)
+    //        {
+    //            return false;
+    //        }
+    //    }
+    //    return true;
+    //}
+
     private bool GoalAchieved(WorldState goal, WorldState current)
     {
-        foreach (SerializableKeyValuePair<string, int> goalEntry in goal)
+        foreach (KeyValuePair<string, int> goalEntry in goal.GetLivePairs())
         {
             if (!current.ContainsKey(goalEntry.Key) || current[goalEntry.Key] < goalEntry.Value)
             {
@@ -126,6 +137,7 @@ public class GPlanner
         }
         return true;
     }
+
 
     private List<GAction> ActionSubset(List<GAction> actions, GAction removeMe)
     {
