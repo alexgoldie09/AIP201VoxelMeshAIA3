@@ -1,9 +1,22 @@
+/*
+ * GoToTableCustomer.cs
+ * --------------------
+ * This class represents the GOAP action that moves the customer to their assigned seat.
+ */
+
 using UnityEngine;
 
 public class GoToTableCustomer : GAction
 {
     private Customer customer;
 
+    /*
+     * PrePerform() is the actions performed before the agent begins moving to its destination.
+     * - Clears idle flag and sets the stopping distance for a direct approach
+     * - Retrieves the customer’s assigned seat
+     * - Creates a temporary target at the seat’s position
+     * - Navigates the customer to that location
+     */
     public override bool PrePerform()
     {
         agent.stoppingDistance = 0;
@@ -13,7 +26,6 @@ public class GoToTableCustomer : GAction
         customer = GetComponent<Customer>();
         if (customer == null || customer.assignedSeat == null)
         {
-            Debug.LogWarning($"{name} has no assigned seat.");
             return false;
         }
 
@@ -21,14 +33,17 @@ public class GoToTableCustomer : GAction
         target.transform.position = customer.assignedSeat.transform.position;
 
         agent.SetDestination(target.transform.position);
-        //Debug.Log($"{name} assigned to seat {target.name}, destination: {agent.destination}");
 
         return true;
     }
 
+    /*
+     * PostPerform() is the actions performed after the agent has reached it's destination.
+     * - Destroys the temporary target
+     * - Marks the customer as seated and notifies the world state that the customer is ready to order
+     */
     public override bool PostPerform()
     {
-        // Clean up the dummy target object if desired
         if (target != null)
         {
             Destroy(target);

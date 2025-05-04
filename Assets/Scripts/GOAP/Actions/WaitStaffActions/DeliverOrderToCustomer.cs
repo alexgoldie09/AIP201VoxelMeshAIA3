@@ -1,3 +1,12 @@
+/*
+ * DeliverOrderToCustomer.cs
+ * -------------------------
+ * This class represents the GOAP action where the wait staff delivers the meal to the correct customer.
+ * 
+ * Extras:
+ * - There is a 40% chance of delivering the wrong meal (to simulate human error).
+ */
+
 using UnityEngine;
 
 public class DeliverOrderToCustomer : GAction
@@ -5,12 +14,18 @@ public class DeliverOrderToCustomer : GAction
     private Customer customerTarget;
     private Order orderToDeliver;
 
+    /*
+     * PrePerform() is the actions performed before the agent begins moving to its destination.
+     * - Clears idle flag and sets the stopping distance for a direct approach
+     * - Retrieves the current order from inventory
+     * - Searches for the matching customer by comparing inventory orders
+     * - Navigates to the StaffSpot of the customer’s seat
+     */
     public override bool PrePerform()
     {
         agent.stoppingDistance = 0;
         thisAgent.inIdle = false;
 
-        // Get first Order from typed inventory
         orderToDeliver = inventory.GetFirstOrder();
 
         if (orderToDeliver == null)
@@ -18,9 +33,7 @@ public class DeliverOrderToCustomer : GAction
             return false;
         }
 
-        // Find correct customer based on matching order
-        GameObject[] allCustomers = GameObject.FindGameObjectsWithTag("Customer");
-        foreach (var obj in allCustomers)
+        foreach (var obj in GameObject.FindGameObjectsWithTag("Customer"))
         {
             Customer cust = obj.GetComponent<Customer>();
             if (cust != null && cust.inventory.HasOrder(orderToDeliver))
@@ -30,73 +43,55 @@ public class DeliverOrderToCustomer : GAction
             }
         }
 
-        if (customerTarget == null)
+        if (customerTarget == null || customerTarget.assignedSeat == null)
         {
-            Debug.LogWarning("[DeliverOrderToCustomer] No customer found for ticket!");
-            return false;
-        }
-
-        // Modify world state
-        GWorld.Instance.GetWorld().ModifyState("FoodInHand", -1);
-
-        // Now find the StaffSpot
-        if (customerTarget.assignedSeat == null)
-        {
-            Debug.LogWarning("[DeliverOrderToCustomer] Customer assigned seat missing!");
             return false;
         }
 
         Transform staffSpot = customerTarget.assignedSeat.transform.Find("StaffSpot");
         if (staffSpot == null)
         {
-            Debug.LogWarning("[DeliverOrder] No StaffSpot child under assigned seat.");
             return false;
         }
 
-        // Update the target to the StaffSpot location instead
-        GameObject staffTarget = new GameObject("TempDeliverTarget");
-        staffTarget.transform.position = staffSpot.position;
-        target = staffTarget;
-
+        target = new GameObject("TempDeliverTarget");
+        target.transform.position = staffSpot.position;
         agent.SetDestination(target.transform.position);
 
-        Debug.Log($"[DeliverOrderToCustomer] Heading to deliver Order #{orderToDeliver.ticketNumber} to {customerTarget.name}.");
+        // Debug.Log($"[DeliverOrderToCustomer] Heading to deliver Order #{orderToDeliver.ticketNumber} to {customerTarget.name}.");
+
+        GWorld.Instance.GetWorld().ModifyState("FoodInHand", -1);
 
         return true;
     }
 
+    /*
+     * PostPerform() is the actions performed after the agent has reached it's destination.
+     * - 40% chance of assigning an incorrect order
+     * - Sets the deliveredOrder on the customer and modifies world state
+     */
     public override bool PostPerform()
     {
         running = false;
+        inventory.RemoveOrder(orderToDeliver);
 
-        if (orderToDeliver != null)
+        bool giveWrongOrder = Random.value < 0.4f;
+
+        if (giveWrongOrder)
         {
-            inventory.RemoveOrder(orderToDeliver);
-
-            // 40% chance to deliver incorrect order
-            bool giveWrongOrder = Random.value < 0.4f;
-
-            if (giveWrongOrder)
-            {
-                // Create a fake incorrect order
-                Order wrongOrder = new Order(Random.Range(1000, 9999));
-                var randomItem = MenuManager.Instance.GetRandomMenuItem();
-                wrongOrder.AddItem(randomItem.Key, randomItem.Value);
-
-                customerTarget.deliveredOrder = wrongOrder;
-                Debug.Log($"[DeliverOrderToCustomer] Delivered WRONG order to {customerTarget.name}!");
-            }
-            else
-            {
-                customerTarget.deliveredOrder = orderToDeliver;
-                Debug.Log($"[DeliverOrderToCustomer] Delivered correct order #{orderToDeliver.ticketNumber} to {customerTarget.name}");
-            }
+            var wrongItem = MenuManager.Instance.GetRandomMenuItem();
+            Order wrongOrder = new Order(Random.Range(1000, 9999));
+            wrongOrder.AddItem(wrongItem.Key, wrongItem.Value);
+            customerTarget.deliveredOrder = wrongOrder;
+            //Debug.Log($"[DeliverOrderToCustomer] Delivered WRONG order to {customerTarget.name}!");
+        }
+        else
+        {
+            customerTarget.deliveredOrder = orderToDeliver;
+            //Debug.Log($"[DeliverOrderToCustomer] Delivered correct order #{orderToDeliver.ticketNumber} to {customerTarget.name}");
         }
 
-        // After successful delivery, signal customer they received food
         customerTarget.beliefs.ModifyState("ReceivedFood", 1);
-
-        // Finished order delivery
         GWorld.Instance.GetWorld().ModifyState("WaitingOnFood", -1);
 
         return true;

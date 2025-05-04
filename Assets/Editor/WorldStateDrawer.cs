@@ -1,4 +1,21 @@
-﻿using UnityEditor;
+﻿/*
+ * WorldStateDrawer.cs
+ * --------------------
+ * This class is a custom property drawer for displaying and editing a WorldState dictionary in the Unity inspector.
+ *
+ * Tasks:
+ *  - Draws key-value state pairs used in GOAP world and agent beliefs.
+ *  - Adds inline edit/remove support for individual states.
+ *  - Adds buttons to add or clear all state entries.
+ *  - Prevents duplicate state keys.
+ *
+ * Extras:
+ *  - Highlights duplicate keys in red.
+ *  - Randomly generates placeholder keys and values for new entries.
+ *  - Useful for tweaking initial world states or agent beliefs in the Unity Editor.
+ */
+
+using UnityEditor;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
@@ -14,6 +31,12 @@ public class WorldStateDrawer : PropertyDrawer
         "hasWeapon", "isHungry", "enemyNearby", "inCover", "lowHealth", "goalReached", "isRunning", "isScared", "hasAmmo", "canSeePlayer"
     };
 
+    /*
+     * OnGUI() overrides the default Unity inspector UI.
+     * - Renders each WorldState key-value pair with a text field and delete button
+     * - Highlights duplicates visually
+     * - Includes "+ Add State" and "Clear All" buttons
+     */
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
         SerializedProperty listProp = property.FindPropertyRelative("keyValuePairs");
@@ -90,6 +113,11 @@ public class WorldStateDrawer : PropertyDrawer
         EditorGUI.EndProperty();
     }
 
+    /*
+     * GetPropertyHeight() overrides Unity default height for the GUI.
+     * - Calculates total height of the drawer based on the number of items and 
+     *   whether there are duplicates
+     */
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
         SerializedProperty listProp = property.FindPropertyRelative("keyValuePairs");
@@ -100,6 +128,10 @@ public class WorldStateDrawer : PropertyDrawer
         return height;
     }
 
+    /*
+     * ContainsDuplicateKeys() returns whether there are duplicates in the array.
+     * - Helper function to flag key conflicts
+     */
     private bool ContainsDuplicateKeys(SerializedProperty listProp)
     {
         HashSet<string> seen = new();
@@ -111,6 +143,9 @@ public class WorldStateDrawer : PropertyDrawer
         return false;
     }
 
+    /*
+     * GetRandomUnusedKey() chooses a random unused sample state name for quick testing/debugging.
+     */
     private string GetRandomUnusedKey(HashSet<string> usedKeys)
     {
         List<string> unused = new List<string>();

@@ -1,4 +1,18 @@
-﻿using System.Collections.Generic;
+﻿/*
+ * MenuManager.cs
+ * --------------
+ * This class represents a centralized manager for accessing the restaurant’s food menu.
+ *
+ * Tasks:
+ *  - Provides static access via singleton pattern.
+ *  - Stores a serializable dictionary of food items: (ID -> Name).
+ *  - Allows random menu selection and food name lookup.
+ *
+ * Extras:
+ *  - Used when generating random orders or checking what food corresponds to a ticket number.
+ */
+
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -6,7 +20,7 @@ public class MenuManager : MonoBehaviour
 {
     public static MenuManager Instance { get; private set; }
 
-    [Header("Menu Items (ID → Food Name)")]
+    [Header("Menu Items (ID -> Food Name)")]
     public SerializableDictionary<int, string> menu = new SerializableDictionary<int, string>();
 
     private void Awake()
@@ -21,6 +35,9 @@ public class MenuManager : MonoBehaviour
         }
     }
 
+    /* 
+     * GetRandomMenuItem() returns a random item from the menu (used for generating orders).
+     */
     public KeyValuePair<int, string> GetRandomMenuItem()
     {
         if (menu == null || menu.Count() == 0)
@@ -56,7 +73,9 @@ public class MenuManager : MonoBehaviour
         }
     }
 
-
+    /* 
+     * GetMenuItemName() returns the name of the item corresponding to a given menu ID.
+     */
     public string GetMenuItemName(int id)
     {
         if (menu.TryGetValue(id, out string name))
@@ -66,6 +85,9 @@ public class MenuManager : MonoBehaviour
         return "Unknown";
     }
 
+    /* 
+     * GetMenu() returns the entire menu dictionary.
+     */
     public SerializableDictionary<int, string> GetMenu()
     {
         return menu;

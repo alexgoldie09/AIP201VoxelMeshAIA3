@@ -1,16 +1,35 @@
+/*
+ * MenuDrawer.cs
+ * --------------
+ * This class is a custom property drawer for `SerializableDictionary<int, string>`, used by MenuManager.
+ *
+ * Tasks:
+ *  - Allows menu items to be added, removed, and edited directly from the Unity Inspector.
+ *  - Visualizes each menu item with unique ID and name.
+ *  - Highlights duplicate keys in red to avoid runtime issues.
+ *
+ * Notes:
+ *  - Supports add/clear buttons.
+ *  - Automatically generates a unique ID for each new item.
+ */
+
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
 
-/// <summary>
-/// Custom drawer for the MenuManager's menu dictionary.
-/// </summary>
 [CustomPropertyDrawer(typeof(SerializableDictionary<int, string>))]
 public class MenuDrawer : PropertyDrawer
 {
     private const float keyWidth = 50f;
     private const float buttonWidth = 20f;
 
+    /*
+     * OnGUI() overrides the default Unity inspector UI.
+     * - Draws each key-value pair for the menu items
+     * - Shows add/remove buttons
+     * - Applies light red highlight if duplicate IDs are detected
+     * - Provides in-place field editing
+     */
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
         SerializedProperty listProp = property.FindPropertyRelative("keyValuePairs");
@@ -81,6 +100,11 @@ public class MenuDrawer : PropertyDrawer
         EditorGUI.EndProperty();
     }
 
+    /*
+     * GetPropertyHeight() overrides Unity default height for the GUI.
+     * - Calculates total height of the drawer based on the number of items and 
+     *   whether there are duplicates
+     */
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
         SerializedProperty listProp = property.FindPropertyRelative("keyValuePairs");
@@ -91,6 +115,10 @@ public class MenuDrawer : PropertyDrawer
         return height;
     }
 
+    /*
+     * ContainsDuplicateKeys() returns whether there are duplicates in the array.
+     * - Helper function to flag key conflicts
+     */
     private bool ContainsDuplicateKeys(SerializedProperty listProp)
     {
         HashSet<int> seen = new();
@@ -102,6 +130,9 @@ public class MenuDrawer : PropertyDrawer
         return false;
     }
 
+    /*
+     * GetUniqueID() generates a unique integer ID for new items to avoid collisions.
+     */
     private int GetUniqueID(HashSet<int> usedKeys)
     {
         int id = Random.Range(1, 9999);

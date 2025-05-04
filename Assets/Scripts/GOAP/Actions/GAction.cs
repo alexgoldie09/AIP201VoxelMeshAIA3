@@ -1,3 +1,19 @@
+/*
+ * GAction.cs
+ * ----------
+ * Abstract base class for all GOAP-compatible actions.
+ *
+ * Tasks:
+ *  - Defines action name, preconditions, effects, duration, and cost.
+ *  - Manages references to agent's NavMesh, beliefs, and inventory.
+ *  - Provides utility for checking if action is usable (in general or in context).
+ *  - Subclasses implement PrePerform() and PostPerform() to handle start/end logic.
+ *
+ * Extras:
+ *  - Target objects can be assigned via tag or GameObject reference.
+ *  - Running flag tracks if action is currently executing.
+ */
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,21 +38,31 @@ public abstract class GAction : MonoBehaviour
 
     public bool running = false;
 
+    // Called on instantiation to cache agent references and components.
     public virtual void Awake()
     {
-        agent = this.gameObject.GetComponent<NavMeshAgent>();
-        thisAgent = this.GetComponent<GAgent>();
+        agent = GetComponent<NavMeshAgent>();
+        thisAgent = GetComponent<GAgent>();
         inventory = thisAgent.inventory;
         beliefs = thisAgent.beliefs;
     }
 
-    public bool IsAchievable() => true;
+    /* 
+     * IsAchievable() returns whether an action is achievable.
+     * - Returns true by default
+     * - Can be overridden to add custom rules
+     */
+    public virtual bool IsAchievable() => true;
 
+    /* 
+     * IsAchievableGiven() returns whether an action is achievable by the conditions given.
+     * - If no preconditions, or conditions have been fulfilled it is achievable
+     */
     public bool IsAchievableGiven(WorldState conditions)
     {
         if (preConditions == null) return true;
 
-        foreach (KeyValuePair<string, int> pair in preConditions.GetLivePairs())
+        foreach (var pair in preConditions.GetLivePairs())
         {
             if(!conditions.ContainsKey(pair.Key) || conditions[pair.Key] < pair.Value)
             {
@@ -46,6 +72,8 @@ public abstract class GAction : MonoBehaviour
         return true;
     }
 
+    // Abstract method to be overridden to handle action completion logic
     public abstract bool PrePerform();
+    // Abstract method to be overridden to handle action completion logic
     public abstract bool PostPerform();
 }

@@ -1,3 +1,13 @@
+/*
+ * WaitForTable.cs
+ * ---------------
+ * This class represents the GOAP action where the customer checks in and waits for a seat.
+ * 
+ * Extras:
+ * - If a seat is found, it is reserved and the customer is assigned to it.
+ * - If none are available, fallback logic is triggered to leave the restaurant.
+ */
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,46 +16,41 @@ public class WaitForTable : GAction
 {
     private GameObject receptionStaff;
 
-    public override bool PostPerform()
-    {
-        running = false;
-        return true;
-    }
-
+    /*
+     * PrePerform() is the actions performed before the agent begins moving to its destination.
+     * - Searches for available seat via GWorld
+     * - If one exists, reserves it and assigns it to the customer
+     * - If none exist, modifies beliefs and removes seating goals
+     * - Begins coroutine to rotate toward reception staff for immersion
+     */
     public override bool PrePerform()
     {
         Debug.Log("Finding reception staff...");
         agent.updateRotation = false;
         receptionStaff = GameObject.FindWithTag("ReceptionStaff");
 
-        // Try to get an unreserved seat
         GameObject seat = GWorld.Instance.PeekAnySeat();
 
         if (seat == null)
         {
-            Debug.LogWarning("No unreserved seat available at check-in.");
-            // Set fallback belief to leave
             Customer customer = GetComponent<Customer>();
             if (customer != null)
             {
                 customer.beliefs.ModifyState("RestaurantFull", 1);
-                customer.RemoveGoal("isWaiting"); // Remove the goal to CheckIn
-                customer.RemoveGoal("isSeated");  // (Optional) Remove sit-down goal if exists
-                Debug.Log($"[{name}] Set Restaurant_Full belief - leaving.");
+                customer.RemoveGoal("isWaiting");
+                customer.RemoveGoal("isSeated");
             }
             return false;
         }
 
-        // Reserve the seat
         if (seat.TryGetComponent(out Seat seatComp))
         {
             if (seatComp.isReserved)
             {
-                Debug.LogWarning("Somehow grabbed a seat that was already reserved.");
                 return false;
             }
 
-            seatComp.isReserved = true; // Mark as reserved
+            seatComp.isReserved = true;
 
             Customer customer = GetComponent<Customer>();
             if (customer != null)
@@ -53,36 +58,48 @@ public class WaitForTable : GAction
                 customer.assignedSeat = seat;
                 customer.tableNumber = seatComp.tableNumber;
                 beliefs.ModifyState("RestaurantAvailable", 1);
-                Debug.Log($"Customer {name} assigned to table {customer.tableNumber} at seat {seat.name}");
             }
         }
         else
         {
-            Debug.LogWarning("Seat does not have a Seat component.");
             return false;
         }
 
-        // Add to world state
-        GWorld.Instance.AddCustomer(this.gameObject);
+        GWorld.Instance.AddCustomer(gameObject);
         beliefs.ModifyState("atRestaurant", 1);
 
         StartCoroutine(TurnAgent());
-
-        // Mark this action as running to block planner progression
         running = true;
-
-        // Schedule action completion
         Invoke(nameof(CompleteAction), duration);
 
         return true;
     }
 
+    /*
+     * PostPerform() is the actions performed after the agent has reached it's destination.
+     * - Marks the action as complete
+     */
+    public override bool PostPerform()
+    {
+        running = false;
+        return true;
+    }
+
+    /*
+     * CompleteAction() is called to finish the current action.
+     * - Called by Invoke() after a short wait to simulate queueing
+     * - Reduces the count of free seats in the world state
+     */
     private void CompleteAction()
     {
         GWorld.Instance.GetWorld().ModifyState("Free_Seat", -1);
         running = false;
     }
 
+    /*
+     * TurnAgent() is a Coroutine that rotates the customer to face the reception staff over 1 second.
+     * - Adds immersion and simulates waiting in line.
+     */
     private IEnumerator TurnAgent()
     {
         if (receptionStaff != null)
@@ -106,10 +123,10 @@ public class WaitForTable : GAction
                     yield return null;
                 }
 
-                transform.rotation = lookRotation; // snap to exact rotation
+                transform.rotation = lookRotation;
             }
         }
 
-        yield return new WaitForSeconds(duration); // Optional: delay after rotating
+        yield return new WaitForSeconds(duration);
     }
 }

@@ -1,10 +1,30 @@
+/*
+ * WaitStaff.cs
+ * ------------
+ * This class represents a GOAP agent responsible for taking orders from customers, delivering food, and returning to idle when unoccupied.
+ *
+ * Tasks:
+ *  - Collect customer orders and deliver them to the kitchen.
+ *  - Retrieve ready food and deliver to correct customers.
+ *  - Handles a loop of "take order -> deliver food -> idle".
+ *
+ * Goals (in descending priority):
+ *  - "OrderDelivered": Take order from customer and bring it to kitchen.
+ *  - "HoldingFood": Pick up ready meals from counter.
+ *  - "DeliveredOrderToCustomer": Deliver meals to customers.
+ *  - "Idle": Fallback when no goals are active.
+ *
+ * Extras:
+ *  - All goals persist across frames (`remove = false`) to allow cyclical tasking.
+ *  - Used in tandem with a dynamic world state, seats, orders, and customer needs.
+ */
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class WaitStaff : GAgent
 {
-    // Start is called before the first frame update
     public override void Start()
     {
         base.Start();

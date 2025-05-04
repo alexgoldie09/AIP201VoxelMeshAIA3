@@ -1,57 +1,68 @@
-﻿using UnityEngine;
+﻿/*
+ * ServeSeatedCustomer.cs
+ * -----------------------
+ * This class represents the GOAP action that waitstaff move to a seated customer and prepare to take their order.
+ */
+
+using UnityEngine;
 
 public class ServeSeatedCustomer : GAction
 {
     private GameObject resource;
 
+    /*
+     * PrePerform() is the actions performed before the agent begins moving to its destination.
+     * - Clears idle flag and sets the stopping distance for a direct approach
+     * - Pulls a customer from the queue and checks if they are seated and not already being served
+     * - Marks the customer as "beingServed"
+     * - Navigates to the customer's assigned seat’s StaffSpot
+     * - Adds the seat to the waitstaff’s inventory
+     */
     public override bool PrePerform()
     {
         agent.stoppingDistance = 0;
         thisAgent.inIdle = false;
 
-        // Get the next customer from the waiting queue
         target = GWorld.Instance.RemoveCustomer();
         if (target == null)
         {
-            //Debug.LogWarning("No customer found in the queue.");
             return false;
         }
 
-        // Get the customer's assigned seat
         Customer customer = target.GetComponent<Customer>();
 
         if(!customer.isSeated)
         {
-            GWorld.Instance.AddCustomer(target);
+            GWorld.Instance.AddCustomer(target); // Re-queue if they’re not ready
             return false;
         }
 
-        if (customer != null && customer.assignedSeat != null && !customer.beingServed)
+        if (customer.assignedSeat != null && !customer.beingServed)
         {
             resource = customer.assignedSeat;
             resource.name = "Resource";
-            customer.beingServed = true; // Claim customer immediately
+            customer.beingServed = true;
 
-            // Add seat to wait staff's inventory
             inventory.AddItem(resource);
 
-            // Find the StaffSpot offset near their seat
             Transform staffSpot = resource.transform.Find("StaffSpot");
 
             if (staffSpot != null)
             {
-                // Create dummy target
                 target = new GameObject("TempStaffTarget");
                 target.transform.position = staffSpot.position;
                 agent.SetDestination(target.transform.position);
-
-                Debug.Log($"[WaitStaff] Going to serve seated customer: {customer.name} at seat {resource.name}");
                 return true;
             }
         }
         return false;
     }
 
+    /*
+     * PostPerform() is the actions performed after the agent has reached it's destination.
+     * - Destroys temporary target
+     * - Updates the world state to track how many customers are being served
+     */
     public override bool PostPerform()
     {
         if (target != null)
@@ -59,7 +70,6 @@ public class ServeSeatedCustomer : GAction
             Destroy(target);
         }
 
-        // (Optional) Mark customer as "BeingServed" if you want
         GWorld.Instance.GetWorld().ModifyState("ReadyToOrder", -1);
         GWorld.Instance.GetWorld().ModifyState("BeingServed", 1);
         return true;
